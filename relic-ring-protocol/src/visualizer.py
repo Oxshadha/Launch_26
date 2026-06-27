@@ -365,9 +365,10 @@ class RelicRingVisualizer:
         # Fonts
         self._init_fonts()
 
+        self.judge_mode = False
+        
         # Layout regions
         self._calculate_layout()
-
         # State
         self.current_route = None
         self.current_packet = None
@@ -381,7 +382,6 @@ class RelicRingVisualizer:
         self.anim_speed = 0.008   # per tick (about 3s per hop at 60fps)
         self.anim_path_coords = []
         
-        self.judge_mode = False
         self.judge_step = 0
         self.transmission_status = TransmissionStatus.READY
         self.packet_counter = 0
@@ -514,11 +514,22 @@ class RelicRingVisualizer:
         
         # Row 3: Latency - 28% height
         row3_h = int((body_h - 5 * pad) * 0.28)
-        self.latency_panel_rect = (panel_x, body_top + 3 * pad + row1_h + row2_h, panel_w, row3_h)
         
         # Row 4: Codec - Remaining height
         row4_h = body_h - 5 * pad - row1_h - row2_h - row3_h
-        self.codec_panel_rect = (panel_x, body_top + 4 * pad + row1_h + row2_h + row3_h, panel_w, row4_h)
+        
+        if self.judge_mode:
+            half_p_w = (panel_w - pad) // 2
+            self.latency_panel_rect = (panel_x, body_top + 3 * pad + row1_h + row2_h, half_p_w, row3_h)
+            self.judge_checklist_rect = (panel_x + half_p_w + pad, body_top + 3 * pad + row1_h + row2_h, half_p_w, row3_h)
+            
+            self.codec_panel_rect = (panel_x, body_top + 4 * pad + row1_h + row2_h + row3_h, half_p_w, row4_h)
+            self.routing_engine_rect = (panel_x + half_p_w + pad, body_top + 4 * pad + row1_h + row2_h + row3_h, half_p_w, row4_h)
+        else:
+            self.latency_panel_rect = (panel_x, body_top + 3 * pad + row1_h + row2_h, panel_w, row3_h)
+            self.codec_panel_rect = (panel_x, body_top + 4 * pad + row1_h + row2_h + row3_h, panel_w, row4_h)
+            self.judge_checklist_rect = (0,0,0,0)
+            self.routing_engine_rect = (0,0,0,0)
 
         self.control_rect = (0, self.win_h - ctrl_h, self.win_w, ctrl_h)
 
@@ -774,7 +785,7 @@ class RelicRingVisualizer:
                     used_towers.add(hop['exit_tower'])
                     
         for i in range(n_towers):
-            tower_id = i + 1
+            tower_id = i
             angle = (2 * math.pi * i / n_towers) - math.pi / 2  # Start from top
             tx = int(cx + tower_radius * math.cos(angle))
             ty = int(cy + tower_radius * math.sin(angle))
@@ -898,12 +909,12 @@ class RelicRingVisualizer:
         dst_active = self.planets[dst_id].is_active
         
         src_color = COLORS['led_green'] if src_active else COLORS['led_red']
-        src_icon = "✓" if src_active else "✖ Offline"
+        src_icon = "[ON]" if src_active else "[OFF]"
         dst_color = COLORS['led_green'] if dst_active else COLORS['led_red']
-        dst_icon = "✓" if dst_active else "✖ Offline"
+        dst_icon = "[ON]" if dst_active else "[OFF]"
         
-        self.screen.blit(self.font_mono_sm.render(f"Source:      {src_id} {src_icon}", True, src_color), (x + 22, y + 35))
-        self.screen.blit(self.font_mono_sm.render(f"Destination: {dst_id} {dst_icon}", True, dst_color), (x + 22, y + 55))
+        self.screen.blit(self.font_mono_sm.render(f"Source:      {src_id} {src_icon}", True, src_color), (x + 22, y + 30))
+        self.screen.blit(self.font_mono_sm.render(f"Destination: {dst_id} {dst_icon}", True, dst_color), (x + 22, y + 50))
         
         pkt = self.current_packet
         status_color = COLORS['text_muted']
@@ -922,12 +933,12 @@ class RelicRingVisualizer:
             else:
                 status_color = COLORS['accent']
                 
-        self.screen.blit(self.font_body.render(f"Status: {status_text}", True, status_color), (x + 22, y + 80))
+        self.screen.blit(self.font_body.render(f"Status: {status_text}", True, status_color), (x + 22, y + 74))
         
         if pkt and pkt.status not in (TransmissionStatus.BLOCKED, TransmissionStatus.ABORTED):
-            self.screen.blit(self.font_mono_sm.render(f"Packet ID: #{pkt.packet_id}", True, COLORS['text_muted']), (x + 22, y + 105))
+            self.screen.blit(self.font_mono_sm.render(f"Packet ID: #{pkt.packet_id}", True, COLORS['text_muted']), (x + 22, y + 96))
             if self.current_route:
-                self.screen.blit(self.font_mono_sm.render(f"Latency: {self.current_route.total_latency_s:.5f}s", True, COLORS['text_primary']), (x + 22, y + 125))
+                self.screen.blit(self.font_mono_sm.render(f"Latency: {self.current_route.total_latency_s:.5f}s", True, COLORS['text_primary']), (x + 22, y + 112))
 
     def _draw_universe_meta_panel(self):
         """Draw the UNIVERSE METRICS panel."""
@@ -1199,8 +1210,10 @@ class RelicRingVisualizer:
 
         # Simulate packet journey
         try:
-            if self.judge_mode and self.judge_step == 2:
-                self.judge_step = 5  # Step 3, 4, 5 complete instantly on re-route
+            if self.judge_mode:
+                dead_count = sum(1 for p in self.planets.values() if not p.is_active)
+                if dead_count > 0:
+                    self.judge_step = 5  # Network is degraded, routing demonstrates resilience steps 3-5
                 
             packet = simulate_packet_journey(payload, route, self.planets, self.metadata)
             self.packet_counter += 1
@@ -1251,6 +1264,7 @@ class RelicRingVisualizer:
 
             # Judge Mode vs Auto-reroute for intermediate nodes
             if self.judge_mode:
+                self.judge_step = 1  # Step 1: Kill Node completed
                 if self.current_route and planet_id in self.current_route.path:
                     self.current_route.is_reachable = False
                     if self.current_packet:
@@ -1258,7 +1272,7 @@ class RelicRingVisualizer:
                         self.current_packet.status = TransmissionStatus.BLOCKED
                     self.transmission_status = TransmissionStatus.BLOCKED
                     self.anim_active = False
-                    self.judge_step = 2
+                    self.judge_step = 2  # Route Invalid
                     self._add_toast("ROUTE INVALID. Waiting for recomputation...", "error")
             else:
                 # Seamless Auto-reroute if there's a current route
@@ -1391,6 +1405,7 @@ class RelicRingVisualizer:
                         
                     if self.judge_btn.handle_event(event):
                         self.judge_mode = not self.judge_mode
+                        self._calculate_layout()
                         if self.judge_mode:
                             self.judge_btn.fg_color = COLORS['led_green']
                             self.anim_speed = 0.003
@@ -1454,15 +1469,11 @@ class RelicRingVisualizer:
         pygame.quit()
         
     def _draw_judge_panels(self):
-        """Draws the Routing Engine and Judge Checklist panels."""
+        """Draws the Routing Engine and Judge Checklist panels in the lower right."""
         s = self.scale
-        pad = int(10 * s)
         
-        # 1. Sequence Indicator Checklist (Floating on right, at Hop Log level)
-        check_w = int(240 * s)
-        check_h = int(140 * s)
-        cx = self.win_w - check_w - pad
-        cy = self.hop_panel_rect[1]
+        # 1. Sequence Indicator Checklist
+        cx, cy, check_w, check_h = self.judge_checklist_rect
         
         draw_card_with_screws(self.screen, (cx, cy, check_w, check_h), color=COLORS['teal_panel'], title="JUDGE MODE", title_font=self.font_card_title)
         src_active = self.planets[self.src_dropdown.value].is_active
@@ -1490,17 +1501,13 @@ class RelicRingVisualizer:
                 is_checked = self.judge_step >= i
                 
             color = COLORS['led_green'] if is_checked else COLORS['text_muted']
-            box = "[✓]" if is_checked else "[ ]"
+            box = "[X]" if is_checked else "[ ]"
             txt = self.font_mono_sm.render(f"{box} STEP {i}: {text}", True, color)
             self.screen.blit(txt, (cx + 15, y_offset))
             y_offset += int(18 * s)
             
-        # 2. Routing Engine Panel (Floating on bottom right)
-        panel_w = int(240 * s)
-        panel_h = int(160 * s)
-        
-        rx = self.win_w - panel_w - pad
-        ry = self.win_h - int(CONTROL_H * s) - panel_h - pad
+        # 2. Routing Engine Panel
+        rx, ry, panel_w, panel_h = self.routing_engine_rect
         
         draw_card_with_screws(self.screen, (rx, ry, panel_w, panel_h), color=COLORS['teal_panel'], title="ROUTING ENGINE", title_font=self.font_card_title)
         
@@ -1518,7 +1525,7 @@ class RelicRingVisualizer:
             for line in lines:
                 txt = self.font_mono_sm.render(line, True, COLORS['text_primary'])
                 self.screen.blit(txt, (rx + 15, y_offset))
-                y_offset += int(18 * s)
+                y_offset += int(20 * s)
                 
             path_txt = " ↓ ".join(r.path)
             # Truncate if too long to fit
@@ -1529,7 +1536,7 @@ class RelicRingVisualizer:
             self.screen.blit(path_surf, (rx + 15, y_offset + 5))
         else:
             txt = self.font_mono_sm.render("Awaiting Route", True, COLORS['text_muted'])
-            self.screen.blit(txt, (rx + 15, ry + int(35 * s)))
+            self.screen.blit(txt, (rx + 15, ry + int(40 * s)))
             
     def _draw_transmission_complete_dialog(self):
         """Draws the Transmission Complete dialog."""
@@ -1555,7 +1562,7 @@ class RelicRingVisualizer:
         
         pkt = self.current_packet
         r = self.current_route
-        path_str = " ↓ ".join(r.path)
+        path_str = " -> ".join(r.path)
         if len(path_str) > 40:
             path_str = path_str[:37] + "..."
             
@@ -1564,13 +1571,13 @@ class RelicRingVisualizer:
             f"Route:     {path_str}",
             f"Algorithm: {r.algorithm_used}",
             f"Latency:   {r.total_latency_s:.2f} s",
-            f"Status:    ✓ Delivered"
+            f"Status:    [OK] Delivered"
         ]
         
         y_offset = cy + int(45 * s)
         for line in lines:
             color = COLORS['text_primary']
-            if "✓" in line:
+            if "[OK]" in line:
                 color = COLORS['led_green']
             
             txt = self.font_mono_sm.render(line, True, color)

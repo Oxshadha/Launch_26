@@ -198,8 +198,8 @@ class ResilienceManager:
         active_planets = [p for p in self.all_planets.values() if p.is_active]
         self.graph = build_network_graph(self.metadata, active_planets)
         
-        # Re-precompute routes
-        self._precompute_all_routes()
+        # Clear cache to force live recomputation on next routing request
+        self.route_cache.clear()
         
         end_time = time.perf_counter()
         convergence_ms = (end_time - start_time) * 1000.0
@@ -263,6 +263,7 @@ class ResilienceManager:
             for route in self.route_cache[cache_key]:
                 # Verify that no node in the path has been killed
                 if not any(node in self.dead_nodes for node in route.path):
+                    route.route_source = "Cache"
                     return route
                     
         # Fallback to live A* calculation

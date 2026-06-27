@@ -381,6 +381,8 @@ class RelicRingVisualizer:
         self.anim_path_coords = []
         
         self.judge_mode = False
+        self.judge_step = 0
+        self.transmission_complete = False
         self.packet_counter = 0
         
         # Toasts
@@ -598,6 +600,7 @@ class RelicRingVisualizer:
         )
         x_cursor += int(120 * s)
         
+
         # Judge Mode button
         self.judge_btn = NeuButton(
             (x_cursor, element_y, int(120 * s), element_h),
@@ -1172,6 +1175,9 @@ class RelicRingVisualizer:
 
         # Simulate packet journey
         try:
+            if self.judge_mode and self.judge_step == 2:
+                self.judge_step = 3
+                
             packet = simulate_packet_journey(payload, route, self.planets, self.metadata)
             self.packet_counter += 1
             packet.packet_id = f"{self.packet_counter:03d}"
@@ -1212,9 +1218,19 @@ class RelicRingVisualizer:
             print(f"  Convergence: {log.get('convergence_time_ms', 0):.2f}ms")
             self._add_toast(f"Killed {planet_id}", "error")
 
-            # Auto-reroute if there's a current route
-            if self.current_route:
-                self._action_send_packet()
+            # Judge Mode vs Auto-reroute
+            if self.judge_mode:
+                if self.current_route and planet_id in self.current_route.path:
+                    self.current_route.is_reachable = False
+                    if self.current_packet:
+                        self.current_packet.destination_id = "UNDELIVERABLE"
+                    self.anim_active = False
+                    self.judge_step = 2
+                    self._add_toast("ROUTE INVALID. Waiting for recomputation...", "error")
+            else:
+                # Seamless Auto-reroute if there's a current route
+                if self.current_route:
+                    self._action_send_packet()
         except Exception as e:
             print(f"[ERROR] Kill failed: {e}")
 
@@ -1328,12 +1344,13 @@ class RelicRingVisualizer:
                         if self.judge_mode:
                             self.judge_btn.fg_color = COLORS['led_green']
                             self.anim_speed = 0.003
+                            self.judge_step = 0
                             self._add_toast("Judge Mode Enabled", "info")
                         else:
                             self.judge_btn.fg_color = COLORS['text_muted']
                             self.anim_speed = 0.008
                             self._add_toast("Judge Mode Disabled", "info")
-
+                            
                     # Planet click for kill mode
                     if (event.type == pygame.MOUSEBUTTONDOWN and
                             event.button == 1 and self.kill_mode and self.hovered_planet):
@@ -1349,6 +1366,8 @@ class RelicRingVisualizer:
                     if self.anim_progress >= 1.0:
                         self.anim_progress = 1.0
                         self.anim_active = False
+                        if self.current_route and self.current_route.is_reachable:
+                            self.transmission_complete = True
 
                 # -- Draw everything --
                 self.screen.fill(COLORS['chassis'])
@@ -1362,6 +1381,12 @@ class RelicRingVisualizer:
                 self._draw_codec_panel()
                 self._draw_control_bar()
                 
+                if self.judge_mode:
+                    self._draw_judge_panels()
+                    
+                if self.transmission_complete:
+                    self._draw_transmission_complete_dialog()
+
                 self._draw_toasts()
 
                 pygame.display.flip()
@@ -1371,7 +1396,116 @@ class RelicRingVisualizer:
             print("\n[EXIT] Shutting down gracefully...")
 
         pygame.quit()
-
+        
+    def _draw_judge_panels(self):
+        """Draws the Routing Engine and Judge Checklist panels."""
+        s = self.scale
+        pad = int(10 * s)
+        
+        # 1. Sequence Indicator Checklist (Top right)
+        check_w = int(240 * s)
+        check_h = int(140 * s)
+        cx = self.win_w - check_w - pad
+        cy = int(HEADER_H * s) + pad
+        
+        draw_card_with_screws(self.screen, (cx, cy, check_w, check_h), title="JUDGE MODE", title_font=self.font_card_title)
+        
+        steps = [
+            "Kill Node",
+            "Route Invalid",
+            "Run Dijkstra/A*",
+            "Route Found",
+            "Resume Transmission"
+        ]
+        
+        y_offset = cy + int(30 * s)
+        for i, text in enumerate(steps, 1):
+            color = COLORS['led_green'] if self.judge_step >= i else COLORS['text_muted']
+            box = "[✓]" if self.judge_step >= i else "[ ]"
+            txt = self.font_mono_sm.render(f"{box} STEP {i}: {text}", True, color)
+            self.screen.blit(txt, (cx + 15, y_offset))
+            y_offset += int(18 * s)
+            
+        # 2. Routing Engine Panel (Bottom right)
+        panel_w = int(240 * s)
+        panel_h = int(160 * s)
+        
+        rx = self.win_w - panel_w - pad
+        ry = self.win_h - int(CONTROL_H * s) - panel_h - pad
+        
+        draw_card_with_screws(self.screen, (rx, ry, panel_w, panel_h), title="ROUTING ENGINE", title_font=self.font_card_title)
+        
+        if self.current_route:
+            r = self.current_route
+            lines = [
+                f"Algorithm: {r.algorithm_used}",
+                f"Source:    {r.route_source}",
+                f"Visited:   {r.visited_nodes}",
+                f"Edges:     {r.edges_checked}",
+                f"Exec Time: {r.execution_time_ms:.2f}ms"
+            ]
+            
+            y_offset = ry + int(30 * s)
+            for line in lines:
+                txt = self.font_mono_sm.render(line, True, COLORS['text_primary'])
+                self.screen.blit(txt, (rx + 15, y_offset))
+                y_offset += int(18 * s)
+                
+            path_txt = " ↓ ".join(r.path)
+            # Truncate if too long to fit
+            if len(path_txt) > 28:
+                path_txt = path_txt[:25] + "..."
+                
+            path_surf = self.font_mono_sm.render(path_txt, True, COLORS['accent'])
+            self.screen.blit(path_surf, (rx + 15, y_offset + 5))
+        else:
+            txt = self.font_mono_sm.render("Awaiting Route", True, COLORS['text_muted'])
+            self.screen.blit(txt, (rx + 15, ry + int(35 * s)))
+            
+    def _draw_transmission_complete_dialog(self):
+        """Draws the Transmission Complete dialog."""
+        if not self.current_route or not self.current_packet:
+            return
+            
+        s = self.scale
+        cw = int(360 * s)
+        ch = int(220 * s)
+        cx = (self.win_w - cw) // 2
+        cy = (self.win_h - ch) // 2
+        
+        # Darken bg
+        overlay = pygame.Surface((self.win_w, self.win_h), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+        self.screen.blit(overlay, (0, 0))
+        
+        draw_card_with_screws(self.screen, (cx, cy, cw, ch), title="TRANSMISSION COMPLETE", title_font=self.font_card_title)
+        
+        pkt = self.current_packet
+        r = self.current_route
+        path_str = " ↓ ".join(r.path)
+        if len(path_str) > 40:
+            path_str = path_str[:37] + "..."
+            
+        lines = [
+            f"Packet:    PKT-{pkt.packet_id}",
+            f"Route:     {path_str}",
+            f"Algorithm: {r.algorithm_used}",
+            f"Latency:   {r.total_latency_s:.2f} s",
+            f"Status:    ✓ Delivered"
+        ]
+        
+        y_offset = cy + int(45 * s)
+        for line in lines:
+            color = COLORS['text_primary']
+            if "✓" in line:
+                color = COLORS['led_green']
+            
+            txt = self.font_mono_sm.render(line, True, color)
+            self.screen.blit(txt, (cx + 20, y_offset))
+            y_offset += int(25 * s)
+            
+        hint = self.font_mono_sm.render("Click anywhere to continue", True, COLORS['text_muted'])
+        self.screen.blit(hint, (cx + (cw - hint.get_width()) // 2, cy + ch - 30))
 
 # ══════════════════════════════════════════════════════════════════
 # Standalone Runner (for testing without main.py)

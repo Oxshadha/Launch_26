@@ -1005,6 +1005,9 @@ class RelicRingVisualizer:
 
     def _draw_latency_panel(self):
         """Draw the LATENCY BREAKDOWN panel with horizontal bars."""
+        if self.judge_mode:
+            return
+            
         draw_card_with_screws(self.screen, self.latency_panel_rect,
                               title="LATENCY BREAKDOWN", title_font=self.font_card_title)
         x, y, w, h = self.latency_panel_rect
@@ -1073,6 +1076,9 @@ class RelicRingVisualizer:
 
     def _draw_codec_panel(self):
         """Draw the PACKET CODEC panel showing Base-N translations."""
+        if self.judge_mode:
+            return
+            
         draw_card_with_screws(self.screen, self.codec_panel_rect,
                               title="PACKET CODEC", title_font=self.font_card_title)
         x, y, w, h = self.codec_panel_rect
@@ -1457,16 +1463,13 @@ class RelicRingVisualizer:
         pygame.quit()
         
     def _draw_judge_panels(self):
-        """Draws the Routing Engine and Judge Checklist panels as HUDs on the Star Map."""
+        """Draws the Routing Engine and Judge Checklist panels in the lower right."""
         s = self.scale
         
-        # 1. Sequence Indicator Checklist (HUD: Top-Left of Star Map)
-        check_w = int(280 * s)
-        check_h = int(160 * s)
-        cx = self.map_rect[0] + int(20 * s)
-        cy = self.map_rect[1] + int(40 * s)
+        # 1. Sequence Indicator Checklist (Occupies Latency Panel slot)
+        cx, cy, check_w, check_h = self.latency_panel_rect
         
-        draw_card_with_screws(self.screen, (cx, cy, check_w, check_h), color=COLORS['teal_panel'], title="JUDGE MODE", title_font=self.font_card_title)
+        draw_card_with_screws(self.screen, (cx, cy, check_w, check_h), color=COLORS['teal_panel'], title="JUDGE MODE - RESILIENCE CHECKLIST", title_font=self.font_card_title)
         src_active = self.planets[self.src_dropdown.value].is_active
         dst_active = self.planets[self.dst_dropdown.value].is_active
         
@@ -1497,14 +1500,10 @@ class RelicRingVisualizer:
             self.screen.blit(txt, (cx + 15, y_offset))
             y_offset += int(18 * s)
             
-        # 2. Routing Engine Panel (HUD: Bottom-Left of Star Map)
-        panel_w = int(280 * s)
-        panel_h = int(180 * s)
+        # 2. Routing Engine Panel (Occupies Codec Panel slot)
+        rx, ry, panel_w, panel_h = self.codec_panel_rect
         
-        rx = self.map_rect[0] + int(20 * s)
-        ry = self.map_rect[1] + self.map_rect[3] - panel_h - int(20 * s)
-        
-        draw_card_with_screws(self.screen, (rx, ry, panel_w, panel_h), color=COLORS['teal_panel'], title="ROUTING ENGINE", title_font=self.font_card_title)
+        draw_card_with_screws(self.screen, (rx, ry, panel_w, panel_h), color=COLORS['teal_panel'], title="JUDGE MODE - ROUTING ENGINE TELEMETRY", title_font=self.font_card_title)
         
         if self.current_route:
             r = self.current_route

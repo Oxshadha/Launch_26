@@ -82,17 +82,17 @@ CARD_RADIUS = 12
 SCREW_SIZE = 4
 SHADOW_OFFSET = 4
 
-# Font sizes
+# Font sizes (Enlarged for High-DPI/Legibility)
 FONT_SIZES = {
-    'header_title': 20,
-    'header_sub': 13,
-    'card_title': 14,
-    'body': 12,
-    'mono': 12,
-    'mono_small': 11,
-    'button': 14,
-    'planet_label': 11,
-    'led_label': 10,
+    'header_title': 28,
+    'header_sub': 16,
+    'card_title': 18,
+    'body': 16,
+    'mono': 15,
+    'mono_small': 14,
+    'button': 18,
+    'planet_label': 14,
+    'led_label': 13,
 }
 
 
@@ -359,7 +359,7 @@ class RelicRingVisualizer:
         # Compute scale factor
         self.scale = min(self.win_w / BASE_W, self.win_h / BASE_H)
 
-        self.screen = pygame.display.set_mode((self.win_w, self.win_h))
+        self.screen = pygame.display.set_mode((self.win_w, self.win_h), pygame.RESIZABLE)
         pygame.display.set_caption("RELIC RING PROTOCOL  -  Zeta-26 Star System")
 
         # Fonts
@@ -580,33 +580,32 @@ class RelicRingVisualizer:
 
         # Send button
         self.send_btn = NeuButton(
-            (x_cursor, element_y, int(130 * s), element_h),
+            (x_cursor, element_y, int(160 * s), element_h),
             "SEND PACKET", color=COLORS['accent'], font=self.font_btn
         )
-        x_cursor += int(140 * s)
+        x_cursor += int(170 * s)
 
         # Kill Node button
         self.kill_btn = NeuButton(
-            (x_cursor, element_y, int(120 * s), element_h),
+            (x_cursor, element_y, int(140 * s), element_h),
             "KILL NODE", color=COLORS['button_dark'],
             fg_color=COLORS['led_red'], font=self.font_btn
         )
-        x_cursor += int(130 * s)
+        x_cursor += int(150 * s)
 
         # Revive All button
         self.revive_btn = NeuButton(
-            (x_cursor, element_y, int(110 * s), element_h),
+            (x_cursor, element_y, int(150 * s), element_h),
             "REVIVE ALL", color=COLORS['button_dark'],
             fg_color=COLORS['led_green'], font=self.font_btn
         )
-        x_cursor += int(120 * s)
+        x_cursor += int(160 * s)
         
-
         # Judge Mode button
         self.judge_btn = NeuButton(
-            (x_cursor, element_y, int(120 * s), element_h),
+            (x_cursor, element_y, int(150 * s), element_h),
             "JUDGE MODE", color=COLORS['button_dark'],
-            fg_color=COLORS['text_muted'], font=self.font_btn
+            fg_color=COLORS['button_dark_fg'], font=self.font_btn
         )
 
     # ──────────────────────────────────────────────────────────────
@@ -1345,6 +1344,18 @@ class RelicRingVisualizer:
                     if event.type == pygame.QUIT:
                         running = False
                         
+                    if event.type == pygame.VIDEORESIZE:
+                        # Prevent window from becoming too small
+                        self.win_w = max(1024, event.w)
+                        self.win_h = max(720, event.h)
+                        self.scale = min(self.win_w / BASE_W, self.win_h / BASE_H)
+                        self.screen = pygame.display.set_mode((self.win_w, self.win_h), pygame.RESIZABLE)
+                        self._init_fonts()
+                        self._calculate_layout()
+                        self._calculate_planet_positions()
+                        self._init_ui_elements()
+                        continue
+                        
                     if self.transmission_status == TransmissionStatus.DELIVERED:
                         if event.type == pygame.MOUSEBUTTONDOWN:
                             self.transmission_status = TransmissionStatus.READY
@@ -1386,7 +1397,7 @@ class RelicRingVisualizer:
                             self.judge_step = 0
                             self._add_toast("Judge Mode Enabled", "info")
                         else:
-                            self.judge_btn.fg_color = COLORS['text_muted']
+                            self.judge_btn.fg_color = COLORS['button_dark_fg']
                             self.anim_speed = 0.008
                             self._add_toast("Judge Mode Disabled", "info")
                             

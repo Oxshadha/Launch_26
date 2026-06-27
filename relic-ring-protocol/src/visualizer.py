@@ -1199,8 +1199,10 @@ class RelicRingVisualizer:
 
         # Simulate packet journey
         try:
-            if self.judge_mode and self.judge_step == 2:
-                self.judge_step = 5  # Step 3, 4, 5 complete instantly on re-route
+            if self.judge_mode:
+                dead_count = sum(1 for p in self.planets.values() if not p.is_active)
+                if dead_count > 0:
+                    self.judge_step = 5  # Network is degraded, routing demonstrates resilience steps 3-5
                 
             packet = simulate_packet_journey(payload, route, self.planets, self.metadata)
             self.packet_counter += 1
@@ -1251,6 +1253,7 @@ class RelicRingVisualizer:
 
             # Judge Mode vs Auto-reroute for intermediate nodes
             if self.judge_mode:
+                self.judge_step = 1  # Step 1: Kill Node completed
                 if self.current_route and planet_id in self.current_route.path:
                     self.current_route.is_reachable = False
                     if self.current_packet:
@@ -1258,7 +1261,7 @@ class RelicRingVisualizer:
                         self.current_packet.status = TransmissionStatus.BLOCKED
                     self.transmission_status = TransmissionStatus.BLOCKED
                     self.anim_active = False
-                    self.judge_step = 2
+                    self.judge_step = 2  # Route Invalid
                     self._add_toast("ROUTE INVALID. Waiting for recomputation...", "error")
             else:
                 # Seamless Auto-reroute if there's a current route

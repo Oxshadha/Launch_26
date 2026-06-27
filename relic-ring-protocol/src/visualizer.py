@@ -785,7 +785,7 @@ class RelicRingVisualizer:
                     used_towers.add(hop['exit_tower'])
                     
         for i in range(n_towers):
-            tower_id = i + 1
+            tower_id = i
             angle = (2 * math.pi * i / n_towers) - math.pi / 2  # Start from top
             tx = int(cx + tower_radius * math.cos(angle))
             ty = int(cy + tower_radius * math.sin(angle))

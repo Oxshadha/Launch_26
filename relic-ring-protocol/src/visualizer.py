@@ -1457,15 +1457,14 @@ class RelicRingVisualizer:
         pygame.quit()
         
     def _draw_judge_panels(self):
-        """Draws the Routing Engine and Judge Checklist panels."""
+        """Draws the Routing Engine and Judge Checklist panels as HUDs on the Star Map."""
         s = self.scale
-        pad = int(10 * s)
         
-        # 1. Sequence Indicator Checklist (Floating on right, at Hop Log level)
-        check_w = int(240 * s)
-        check_h = int(140 * s)
-        cx = self.win_w - check_w - pad
-        cy = self.hop_panel_rect[1]
+        # 1. Sequence Indicator Checklist (HUD: Top-Left of Star Map)
+        check_w = int(280 * s)
+        check_h = int(160 * s)
+        cx = self.map_rect[0] + int(20 * s)
+        cy = self.map_rect[1] + int(40 * s)
         
         draw_card_with_screws(self.screen, (cx, cy, check_w, check_h), color=COLORS['teal_panel'], title="JUDGE MODE", title_font=self.font_card_title)
         src_active = self.planets[self.src_dropdown.value].is_active
@@ -1498,12 +1497,12 @@ class RelicRingVisualizer:
             self.screen.blit(txt, (cx + 15, y_offset))
             y_offset += int(18 * s)
             
-        # 2. Routing Engine Panel (Floating on bottom right)
-        panel_w = int(240 * s)
-        panel_h = int(160 * s)
+        # 2. Routing Engine Panel (HUD: Bottom-Left of Star Map)
+        panel_w = int(280 * s)
+        panel_h = int(180 * s)
         
-        rx = self.win_w - panel_w - pad
-        ry = self.win_h - int(CONTROL_H * s) - panel_h - pad
+        rx = self.map_rect[0] + int(20 * s)
+        ry = self.map_rect[1] + self.map_rect[3] - panel_h - int(20 * s)
         
         draw_card_with_screws(self.screen, (rx, ry, panel_w, panel_h), color=COLORS['teal_panel'], title="ROUTING ENGINE", title_font=self.font_card_title)
         
@@ -1521,7 +1520,7 @@ class RelicRingVisualizer:
             for line in lines:
                 txt = self.font_mono_sm.render(line, True, COLORS['text_primary'])
                 self.screen.blit(txt, (rx + 15, y_offset))
-                y_offset += int(18 * s)
+                y_offset += int(20 * s)
                 
             path_txt = " ↓ ".join(r.path)
             # Truncate if too long to fit
@@ -1532,7 +1531,7 @@ class RelicRingVisualizer:
             self.screen.blit(path_surf, (rx + 15, y_offset + 5))
         else:
             txt = self.font_mono_sm.render("Awaiting Route", True, COLORS['text_muted'])
-            self.screen.blit(txt, (rx + 15, ry + int(35 * s)))
+            self.screen.blit(txt, (rx + 15, ry + int(40 * s)))
             
     def _draw_transmission_complete_dialog(self):
         """Draws the Transmission Complete dialog."""

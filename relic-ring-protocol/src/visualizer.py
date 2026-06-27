@@ -814,7 +814,7 @@ class RelicRingVisualizer:
             f"Atmosphere: {planet.atmosphere_thickness_km:,.0f} km",
             f"Refraction: {planet.refraction_index:.3f}",
             f"Towers: {planet.active_towers}",
-            f"Coordinates: ({planet.x_coord:,.0f}, {planet.y_coord:,.0f})",
+            f"Coordinates: ({planet.x:,.0f}, {planet.y:,.0f})",
             f"Status: {status_text}"
         ]
         

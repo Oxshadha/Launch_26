@@ -38,11 +38,18 @@ def load_universe_config(file_path: str) -> tuple[UniverseMetadata, List[Planet]
     raw_meta = data.get("universe_metadata", {})
     
     # Extract metadata with spec-defined defaults
+    # NOTE: coordinate_scale_unit_km MUST exist per spec (no default allowed)
+    if "coordinate_scale_unit_km" not in raw_meta:
+        raise KeyError(
+            "Missing required field 'coordinate_scale_unit_km' in universe_metadata. "
+            "This field must exist per the challenge specification (no default allowed)."
+        )
+
     meta = UniverseMetadata(
         system_name=raw_meta.get("system_name", "Unknown System"),
         speed_of_light_kms=float(raw_meta.get("speed_of_light_kms", 300000.0)),
         max_void_hop_distance_km=float(raw_meta.get("max_void_hop_distance_km", 50000000.0)),
-        coordinate_scale_unit_km=float(raw_meta.get("coordinate_scale_unit_km", 100000.0)),
+        coordinate_scale_unit_km=float(raw_meta["coordinate_scale_unit_km"]),
         tower_processing_delay_ms=float(raw_meta.get("tower_processing_delay_ms", 7.0)),
         fiber_speed_fraction=float(raw_meta.get("fiber_speed_fraction", 0.67))
     )
@@ -59,6 +66,17 @@ def load_universe_config(file_path: str) -> tuple[UniverseMetadata, List[Planet]
             atmosphere_thickness_km=float(raw_node["atmosphere_thickness_km"]),
             refraction_index=float(raw_node["refraction_index"])
         )
+
+        # Validate against spec constraints
+        if planet.active_towers < 4:
+            raise ValueError(f"Planet {planet.id}: active_towers ({planet.active_towers}) must be >= 4")
+        if planet.codex < 2:
+            raise ValueError(f"Planet {planet.id}: codex ({planet.codex}) must be >= 2")
+        if planet.refraction_index < 1.0:
+            raise ValueError(f"Planet {planet.id}: refraction_index ({planet.refraction_index}) must be >= 1.0")
+        if planet.radius_km <= 0:
+            raise ValueError(f"Planet {planet.id}: radius_km ({planet.radius_km}) must be > 0")
+
         planets.append(planet)
 
     return meta, planets

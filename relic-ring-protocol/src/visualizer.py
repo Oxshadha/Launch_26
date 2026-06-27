@@ -909,12 +909,12 @@ class RelicRingVisualizer:
         dst_active = self.planets[dst_id].is_active
         
         src_color = COLORS['led_green'] if src_active else COLORS['led_red']
-        src_icon = "✓" if src_active else "✖ Offline"
+        src_icon = "[ON]" if src_active else "[OFF]"
         dst_color = COLORS['led_green'] if dst_active else COLORS['led_red']
-        dst_icon = "✓" if dst_active else "✖ Offline"
+        dst_icon = "[ON]" if dst_active else "[OFF]"
         
-        self.screen.blit(self.font_mono_sm.render(f"Source:      {src_id} {src_icon}", True, src_color), (x + 22, y + 35))
-        self.screen.blit(self.font_mono_sm.render(f"Destination: {dst_id} {dst_icon}", True, dst_color), (x + 22, y + 55))
+        self.screen.blit(self.font_mono_sm.render(f"Source:      {src_id} {src_icon}", True, src_color), (x + 22, y + 30))
+        self.screen.blit(self.font_mono_sm.render(f"Destination: {dst_id} {dst_icon}", True, dst_color), (x + 22, y + 50))
         
         pkt = self.current_packet
         status_color = COLORS['text_muted']
@@ -933,12 +933,12 @@ class RelicRingVisualizer:
             else:
                 status_color = COLORS['accent']
                 
-        self.screen.blit(self.font_body.render(f"Status: {status_text}", True, status_color), (x + 22, y + 80))
+        self.screen.blit(self.font_body.render(f"Status: {status_text}", True, status_color), (x + 22, y + 74))
         
         if pkt and pkt.status not in (TransmissionStatus.BLOCKED, TransmissionStatus.ABORTED):
-            self.screen.blit(self.font_mono_sm.render(f"Packet ID: #{pkt.packet_id}", True, COLORS['text_muted']), (x + 22, y + 105))
+            self.screen.blit(self.font_mono_sm.render(f"Packet ID: #{pkt.packet_id}", True, COLORS['text_muted']), (x + 22, y + 96))
             if self.current_route:
-                self.screen.blit(self.font_mono_sm.render(f"Latency: {self.current_route.total_latency_s:.5f}s", True, COLORS['text_primary']), (x + 22, y + 125))
+                self.screen.blit(self.font_mono_sm.render(f"Latency: {self.current_route.total_latency_s:.5f}s", True, COLORS['text_primary']), (x + 22, y + 112))
 
     def _draw_universe_meta_panel(self):
         """Draw the UNIVERSE METRICS panel."""
@@ -1562,7 +1562,7 @@ class RelicRingVisualizer:
         
         pkt = self.current_packet
         r = self.current_route
-        path_str = " ↓ ".join(r.path)
+        path_str = " -> ".join(r.path)
         if len(path_str) > 40:
             path_str = path_str[:37] + "..."
             
@@ -1571,13 +1571,13 @@ class RelicRingVisualizer:
             f"Route:     {path_str}",
             f"Algorithm: {r.algorithm_used}",
             f"Latency:   {r.total_latency_s:.2f} s",
-            f"Status:    ✓ Delivered"
+            f"Status:    [OK] Delivered"
         ]
         
         y_offset = cy + int(45 * s)
         for line in lines:
             color = COLORS['text_primary']
-            if "✓" in line:
+            if "[OK]" in line:
                 color = COLORS['led_green']
             
             txt = self.font_mono_sm.render(line, True, color)

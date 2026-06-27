@@ -1501,7 +1501,7 @@ class RelicRingVisualizer:
                 is_checked = self.judge_step >= i
                 
             color = COLORS['led_green'] if is_checked else COLORS['text_muted']
-            box = "[✓]" if is_checked else "[ ]"
+            box = "[X]" if is_checked else "[ ]"
             txt = self.font_mono_sm.render(f"{box} STEP {i}: {text}", True, color)
             self.screen.blit(txt, (cx + 15, y_offset))
             y_offset += int(18 * s)

@@ -184,6 +184,7 @@ def test_full_hello_world_journey(universe_data, planets_dict):
 def test_packet_schema_fields():
     """Validates Packet dataclass has all mandatory fields from the spec."""
     packet = Packet(
+        packet_id="TEST-01",
         origin_id="Aegis",
         destination_id="Caelum",
         current_id="Aegis",

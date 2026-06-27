@@ -398,7 +398,7 @@ class RelicRingVisualizer:
         self._init_ui_elements()
 
     def _draw_boot_frame(self, title: str, messages: list):
-        self.screen.fill(COLORS['bg'])
+        self.screen.fill(COLORS['chassis'])
         
         # Center coordinates
         cx, cy = self.win_w // 2, self.win_h // 2

@@ -1447,10 +1447,10 @@ class RelicRingVisualizer:
         s = self.scale
         pad = int(10 * s)
         
-        # 1. Sequence Indicator Checklist (Top right - overlays Universe Meta exactly)
-        cx, cy, check_w, check_h = self.universe_meta_rect
+        # 1. Sequence Indicator Checklist (Overlays Hop Log exactly)
+        cx, cy, check_w, check_h = self.hop_panel_rect
         
-        draw_card_with_screws(self.screen, self.universe_meta_rect, color=COLORS['teal_panel'], title="JUDGE MODE", title_font=self.font_card_title)
+        draw_card_with_screws(self.screen, self.hop_panel_rect, color=COLORS['teal_panel'], title="JUDGE MODE", title_font=self.font_card_title)
         src_active = self.planets[self.src_dropdown.value].is_active
         dst_active = self.planets[self.dst_dropdown.value].is_active
         

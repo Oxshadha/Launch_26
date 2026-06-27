@@ -514,11 +514,22 @@ class RelicRingVisualizer:
         
         # Row 3: Latency - 28% height
         row3_h = int((body_h - 5 * pad) * 0.28)
-        self.latency_panel_rect = (panel_x, body_top + 3 * pad + row1_h + row2_h, panel_w, row3_h)
         
         # Row 4: Codec - Remaining height
         row4_h = body_h - 5 * pad - row1_h - row2_h - row3_h
-        self.codec_panel_rect = (panel_x, body_top + 4 * pad + row1_h + row2_h + row3_h, panel_w, row4_h)
+        
+        if self.judge_mode:
+            half_p_w = (panel_w - pad) // 2
+            self.latency_panel_rect = (panel_x, body_top + 3 * pad + row1_h + row2_h, half_p_w, row3_h)
+            self.judge_checklist_rect = (panel_x + half_p_w + pad, body_top + 3 * pad + row1_h + row2_h, half_p_w, row3_h)
+            
+            self.codec_panel_rect = (panel_x, body_top + 4 * pad + row1_h + row2_h + row3_h, half_p_w, row4_h)
+            self.routing_engine_rect = (panel_x + half_p_w + pad, body_top + 4 * pad + row1_h + row2_h + row3_h, half_p_w, row4_h)
+        else:
+            self.latency_panel_rect = (panel_x, body_top + 3 * pad + row1_h + row2_h, panel_w, row3_h)
+            self.codec_panel_rect = (panel_x, body_top + 4 * pad + row1_h + row2_h + row3_h, panel_w, row4_h)
+            self.judge_checklist_rect = (0,0,0,0)
+            self.routing_engine_rect = (0,0,0,0)
 
         self.control_rect = (0, self.win_h - ctrl_h, self.win_w, ctrl_h)
 
@@ -1005,9 +1016,6 @@ class RelicRingVisualizer:
 
     def _draw_latency_panel(self):
         """Draw the LATENCY BREAKDOWN panel with horizontal bars."""
-        if self.judge_mode:
-            return
-            
         draw_card_with_screws(self.screen, self.latency_panel_rect,
                               title="LATENCY BREAKDOWN", title_font=self.font_card_title)
         x, y, w, h = self.latency_panel_rect
@@ -1076,9 +1084,6 @@ class RelicRingVisualizer:
 
     def _draw_codec_panel(self):
         """Draw the PACKET CODEC panel showing Base-N translations."""
-        if self.judge_mode:
-            return
-            
         draw_card_with_screws(self.screen, self.codec_panel_rect,
                               title="PACKET CODEC", title_font=self.font_card_title)
         x, y, w, h = self.codec_panel_rect
@@ -1400,6 +1405,7 @@ class RelicRingVisualizer:
                         
                     if self.judge_btn.handle_event(event):
                         self.judge_mode = not self.judge_mode
+                        self._calculate_layout()
                         if self.judge_mode:
                             self.judge_btn.fg_color = COLORS['led_green']
                             self.anim_speed = 0.003
@@ -1466,10 +1472,10 @@ class RelicRingVisualizer:
         """Draws the Routing Engine and Judge Checklist panels in the lower right."""
         s = self.scale
         
-        # 1. Sequence Indicator Checklist (Occupies Latency Panel slot)
-        cx, cy, check_w, check_h = self.latency_panel_rect
+        # 1. Sequence Indicator Checklist
+        cx, cy, check_w, check_h = self.judge_checklist_rect
         
-        draw_card_with_screws(self.screen, (cx, cy, check_w, check_h), color=COLORS['teal_panel'], title="JUDGE MODE - RESILIENCE CHECKLIST", title_font=self.font_card_title)
+        draw_card_with_screws(self.screen, (cx, cy, check_w, check_h), color=COLORS['teal_panel'], title="JUDGE MODE", title_font=self.font_card_title)
         src_active = self.planets[self.src_dropdown.value].is_active
         dst_active = self.planets[self.dst_dropdown.value].is_active
         
@@ -1500,10 +1506,10 @@ class RelicRingVisualizer:
             self.screen.blit(txt, (cx + 15, y_offset))
             y_offset += int(18 * s)
             
-        # 2. Routing Engine Panel (Occupies Codec Panel slot)
-        rx, ry, panel_w, panel_h = self.codec_panel_rect
+        # 2. Routing Engine Panel
+        rx, ry, panel_w, panel_h = self.routing_engine_rect
         
-        draw_card_with_screws(self.screen, (rx, ry, panel_w, panel_h), color=COLORS['teal_panel'], title="JUDGE MODE - ROUTING ENGINE TELEMETRY", title_font=self.font_card_title)
+        draw_card_with_screws(self.screen, (rx, ry, panel_w, panel_h), color=COLORS['teal_panel'], title="ROUTING ENGINE", title_font=self.font_card_title)
         
         if self.current_route:
             r = self.current_route

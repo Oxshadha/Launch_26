@@ -365,9 +365,10 @@ class RelicRingVisualizer:
         # Fonts
         self._init_fonts()
 
+        self.judge_mode = False
+        
         # Layout regions
         self._calculate_layout()
-
         # State
         self.current_route = None
         self.current_packet = None
@@ -381,7 +382,6 @@ class RelicRingVisualizer:
         self.anim_speed = 0.008   # per tick (about 3s per hop at 60fps)
         self.anim_path_coords = []
         
-        self.judge_mode = False
         self.judge_step = 0
         self.transmission_status = TransmissionStatus.READY
         self.packet_counter = 0

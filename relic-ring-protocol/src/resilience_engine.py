@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from config_parser import Planet, UniverseMetadata
 from graph_builder import NetworkGraph, build_network_graph, find_bridge_nodes, EdgeInfo
-from routing_engine import RouteResult, dijkstra, a_star
+from routing_engine import RouteResult, dijkstra, a_star, _build_hop_log_entry
 from physics_engine import crust_transit_time
 
 def _compute_path_cost(graph: NetworkGraph, path: List[str]) -> Optional[RouteResult]:
@@ -65,42 +65,9 @@ def _compute_path_cost(graph: NetworkGraph, path: List[str]) -> Optional[RouteRe
         Tv = edge.void_travel_time_s
         cost += Tp_curr + Tv
         
-        hop_log_entry = {
-            "planet_id": curr_id,
-            "entry_tower": actual_entry,
-            "exit_tower": edge.source_exit_tower,
-            "segments_traversed": min(
-                abs(edge.source_exit_tower - actual_entry),
-                graph.planets[curr_id].active_towers - abs(edge.source_exit_tower - actual_entry)
-            ),
-            "towers_hit": 1 if actual_entry == edge.source_exit_tower else (
-                min(
-                    abs(edge.source_exit_tower - actual_entry),
-                    graph.planets[curr_id].active_towers - abs(edge.source_exit_tower - actual_entry)
-                ) + 1
-            ),
-            "fiber_time_s": round(
-                (min(
-                    abs(edge.source_exit_tower - actual_entry),
-                    graph.planets[curr_id].active_towers - abs(edge.source_exit_tower - actual_entry)
-                ) * (2 * math.pi * graph.planets[curr_id].radius_km / graph.planets[curr_id].active_towers)) / (meta.fiber_speed_fraction * meta.speed_of_light_kms),
-                9
-            ),
-            "processing_time_s": round(
-                (1 if actual_entry == edge.source_exit_tower else (
-                    min(
-                        abs(edge.source_exit_tower - actual_entry),
-                        graph.planets[curr_id].active_towers - abs(edge.source_exit_tower - actual_entry)
-                    ) + 1
-                )) * (meta.tower_processing_delay_ms / 1000.0),
-                9
-            ),
-            "crust_total_s": round(Tp_curr, 9),
-            "void_distance_km": round(edge.void_distance_km, 9),
-            "void_time_s": round(Tv, 9),
-            "codex_base": graph.planets[curr_id].codex,
-            "next_hop_entry_tower": edge.dest_entry_tower
-        }
+        hop_log_entry = _build_hop_log_entry(
+            graph.planets[curr_id], actual_entry, edge, Tp_curr, graph.metadata
+        )
         hops.append(hop_log_entry)
         entry_tower = edge.dest_entry_tower
         

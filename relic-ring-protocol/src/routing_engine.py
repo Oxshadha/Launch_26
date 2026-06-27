@@ -37,6 +37,41 @@ def euclidean_heuristic(graph: NetworkGraph, current_id: str, dest_id: str) -> f
     
     return straight_line_dist / meta.speed_of_light_kms
 
+def _build_hop_log_entry(
+    planet: Planet,
+    actual_entry: int,
+    edge: EdgeInfo,
+    Tp_curr: float,
+    meta: UniverseMetadata
+) -> Dict[str, Any]:
+    """
+    Single source of truth for constructing a hop_log entry dict.
+    Eliminates the 3x copy-paste DRY violation across dijkstra(), a_star(),
+    and resilience_engine._compute_path_cost().
+    """
+    N = planet.active_towers
+    raw_diff = abs(edge.source_exit_tower - actual_entry)
+    s = min(raw_diff, N - raw_diff)
+    m = 1 if s == 0 else s + 1
+
+    arc_distance = s * (2 * math.pi * planet.radius_km / N)
+    fiber_speed = meta.fiber_speed_fraction * meta.speed_of_light_kms
+
+    return {
+        "planet_id": planet.id,
+        "entry_tower": actual_entry,
+        "exit_tower": edge.source_exit_tower,
+        "segments_traversed": s,
+        "towers_hit": m,
+        "fiber_time_s": round(arc_distance / fiber_speed, 9) if fiber_speed > 0 else 0.0,
+        "processing_time_s": round(m * (meta.tower_processing_delay_ms / 1000.0), 9),
+        "crust_total_s": round(Tp_curr, 9),
+        "void_distance_km": round(edge.void_distance_km, 9),
+        "void_time_s": round(edge.void_travel_time_s, 9),
+        "codex_base": planet.codex,
+        "next_hop_entry_tower": edge.dest_entry_tower
+    }
+
 def dijkstra(
     graph: NetworkGraph, 
     source_id: str, 
@@ -135,44 +170,10 @@ def dijkstra(
             transition_cost = Tp_curr + Tv
             new_cost = cost + transition_cost
             
-            # Construct hop log detail entry
-            hop_log_entry = {
-                "planet_id": curr_id,
-                "entry_tower": actual_entry,
-                "exit_tower": edge.source_exit_tower,
-                # segments_traversed and towers_hit can be calculated from arc segments
-                "segments_traversed": min(
-                    abs(edge.source_exit_tower - actual_entry),
-                    graph.planets[curr_id].active_towers - abs(edge.source_exit_tower - actual_entry)
-                ),
-                "towers_hit": 1 if actual_entry == edge.source_exit_tower else (
-                    min(
-                        abs(edge.source_exit_tower - actual_entry),
-                        graph.planets[curr_id].active_towers - abs(edge.source_exit_tower - actual_entry)
-                    ) + 1
-                ),
-                "fiber_time_s": round(
-                    (min(
-                        abs(edge.source_exit_tower - actual_entry),
-                        graph.planets[curr_id].active_towers - abs(edge.source_exit_tower - actual_entry)
-                    ) * (2 * math.pi * graph.planets[curr_id].radius_km / graph.planets[curr_id].active_towers)) / (meta.fiber_speed_fraction * meta.speed_of_light_kms),
-                    9
-                ),
-                "processing_time_s": round(
-                    (1 if actual_entry == edge.source_exit_tower else (
-                        min(
-                            abs(edge.source_exit_tower - actual_entry),
-                            graph.planets[curr_id].active_towers - abs(edge.source_exit_tower - actual_entry)
-                        ) + 1
-                    )) * (meta.tower_processing_delay_ms / 1000.0),
-                    9
-                ),
-                "crust_total_s": round(Tp_curr, 9),
-                "void_distance_km": round(edge.void_distance_km, 9),
-                "void_time_s": round(Tv, 9),
-                "codex_base": graph.planets[curr_id].codex,
-                "next_hop_entry_tower": edge.dest_entry_tower
-            }
+            # Construct hop log detail entry (using shared builder)
+            hop_log_entry = _build_hop_log_entry(
+                graph.planets[curr_id], actual_entry, edge, Tp_curr, meta
+            )
             
             counter += 1
             heapq.heappush(
@@ -263,43 +264,10 @@ def a_star(
             h_next = euclidean_heuristic(graph, edge.dest_id, dest_id)
             new_f = new_g + h_next
             
-            # Construct hop log detail entry
-            hop_log_entry = {
-                "planet_id": curr_id,
-                "entry_tower": actual_entry,
-                "exit_tower": edge.source_exit_tower,
-                "segments_traversed": min(
-                    abs(edge.source_exit_tower - actual_entry),
-                    graph.planets[curr_id].active_towers - abs(edge.source_exit_tower - actual_entry)
-                ),
-                "towers_hit": 1 if actual_entry == edge.source_exit_tower else (
-                    min(
-                        abs(edge.source_exit_tower - actual_entry),
-                        graph.planets[curr_id].active_towers - abs(edge.source_exit_tower - actual_entry)
-                    ) + 1
-                ),
-                "fiber_time_s": round(
-                    (min(
-                        abs(edge.source_exit_tower - actual_entry),
-                        graph.planets[curr_id].active_towers - abs(edge.source_exit_tower - actual_entry)
-                    ) * (2 * math.pi * graph.planets[curr_id].radius_km / graph.planets[curr_id].active_towers)) / (meta.fiber_speed_fraction * meta.speed_of_light_kms),
-                    9
-                ),
-                "processing_time_s": round(
-                    (1 if actual_entry == edge.source_exit_tower else (
-                        min(
-                            abs(edge.source_exit_tower - actual_entry),
-                            graph.planets[curr_id].active_towers - abs(edge.source_exit_tower - actual_entry)
-                        ) + 1
-                    )) * (meta.tower_processing_delay_ms / 1000.0),
-                    9
-                ),
-                "crust_total_s": round(Tp_curr, 9),
-                "void_distance_km": round(edge.void_distance_km, 9),
-                "void_time_s": round(Tv, 9),
-                "codex_base": graph.planets[curr_id].codex,
-                "next_hop_entry_tower": edge.dest_entry_tower
-            }
+            # Construct hop log detail entry (using shared builder)
+            hop_log_entry = _build_hop_log_entry(
+                graph.planets[curr_id], actual_entry, edge, Tp_curr, meta
+            )
             
             counter += 1
             heapq.heappush(
